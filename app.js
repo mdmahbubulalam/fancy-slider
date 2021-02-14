@@ -4,6 +4,7 @@ const galleryHeader = document.querySelector('.gallery-header');
 const searchBtn = document.getElementById('search-btn');
 const sliderBtn = document.getElementById('create-slider');
 const sliderContainer = document.getElementById('sliders');
+const singleImageDiv = document.getElementById('fullImageShow');
 // selected image 
 let sliders = [];
 
@@ -15,26 +16,37 @@ const KEY = '15674931-a9d714b6e9d654524df198e00&q';
 
 // show images 
 const showImages = (images) => {
-  imagesArea.style.display = 'block';
-  gallery.innerHTML = '';
-  // show gallery title
-  galleryHeader.style.display = 'flex';
-  images.forEach(image => {
-    let div = document.createElement('div');
-    div.className = 'col-lg-3 col-md-4 col-xs-6 img-item mb-2';
-    div.innerHTML = ` <img class="img-fluid img-thumbnail" onclick=selectItem(event,"${image.webformatURL}") src="${image.webformatURL}" alt="${image.tags}">`;
-    gallery.appendChild(div);
-  })
+  if (images.length > 0) {
+    errorMessage('');
+    imagesArea.style.display = 'block';
+    gallery.innerHTML = '';
+    singleImageDiv.innerHTML = '';
+    // show gallery title
+    galleryHeader.style.display = 'flex';
+    images.forEach(image => {
+      let div = document.createElement('div');
+      div.className = 'col-lg-3 col-md-4 col-xs-6 img-item mb-2';
+      div.innerHTML = `
+      <img class="img-fluid img-thumbnail" onclick=selectItem(event,"${image.webformatURL}") src="${image.webformatURL}"  alt="${image.tags}">
+      <button class="btn btn-outline-info btn-sm btn-block" onclick=fullImage("${image.largeImageURL}","${image.user}")>Show Full Image</button>
+      `;
+      gallery.appendChild(div);
+    })
+  } else {
+    errorMessage('Sorry...!! Image not found...!!');
+    imagesArea.style.display = 'none';
+    singleImageDiv.innerHTML = '';
+  }
   toggleSpinner(false);
 }
 
 const getImages = (query) => {
   toggleSpinner(true);
-  fetch(`https://pixabay.com/api/?key=${KEY}&q=${query}&image_type=photo&pretty=true`)
+  const url = `https://pixabay.com/api/?key=${KEY}&q=${query}&image_type=photo&pretty=true`;
+  fetch(url)
     .then(response => response.json())
     .then(data => showImages(data.hits))
-    .catch(err => console.log(err))
-
+    .catch(err => errorMessage('Something wrong...!! Please try again later...!!') || toggleSpinner(false))
 }
 
 let slideIndex = 0;
@@ -42,15 +54,13 @@ const selectItem = (event, img) => {
   event.preventDefault();
   let item = sliders.indexOf(img);
   let element = event.target;
-  element.classList.add('added');
-  console.log(element);
+  element.classList.toggle('added');
   if (item === -1) {
     sliders.push(img);
-    console.log(img);
   } else {
-    //alert('Hey, Already added !')
-    element.classList.toggle('added');
-    sliders.pop(img);
+    if (item > -1) {
+      sliders.splice(item, 1)
+    }
   }
 }
 var timer
@@ -74,13 +84,13 @@ const createSlider = () => {
   // hide image aria
 
   const duration = document.getElementById('duration').value || 1000;
-  if (duration < 0) {
+  if (duration <= 999) {
     imagesArea.style.display = 'block';
-    const errorText = document.getElementById('errorText');
-    errorText.innerText = 'Duration should not be negative';
+    errorMessage('Please enter valid duration.');
+    document.querySelector('.main').style.display = 'none';
   } else {
     sliders.forEach(slide => {
-      errorText.innerText = '';
+      errorMessage('');
       imagesArea.style.display = 'none';
       let item = document.createElement('div')
       item.className = "slider-item";
@@ -124,6 +134,39 @@ const changeSlide = (index) => {
   items[index].style.display = "block"
 }
 
+//added back button, under the slider
+document.getElementById('backBtn').addEventListener('click', function () {
+  document.querySelector('.main').style.display = 'none';
+  let searchArea = document.getElementById("search");
+  imagesArea.style.display = 'block';
+})
+
+//show full image
+const fullImage = (image, user) => {
+  toggleSpinner(true);
+  imagesArea.style.display = 'none';
+  let div = document.createElement('div');
+  div.className = 'col-lg-10 col-md-10 col-xs-10 mb-2';
+  div.innerHTML = `
+      <h6 class="text-center text-capitalize"> User : ${user}</h6>
+      <img class="img-fluid" src="${image}"  alt="">
+      <div class="d-flex justify-content-center mt-3">
+        <button class="btn btn-info mb-3" onclick="backButton()">Back</button>
+      </div>
+      `;
+  singleImageDiv.appendChild(div);
+  toggleSpinner(false);
+}
+
+//added back button, under the full image
+const backButton = () => {
+  let searchArea = document.getElementById("search");
+  singleImageDiv.innerHTML = '';
+  imagesArea.style.display = 'block';
+  searchArea.style.display = 'block';
+  searchBtn.style.display = 'block';
+}
+
 searchBtn.addEventListener('click', function () {
   document.querySelector('.main').style.display = 'none';
   clearInterval(timer);
@@ -142,6 +185,11 @@ document.getElementById("search").addEventListener("keypress", function (event) 
 sliderBtn.addEventListener('click', function () {
   createSlider();
 });
+
+const errorMessage = (error) => {
+  const errorText = document.getElementById('errorText');
+  errorText.innerText = error;
+}
 
 //added loading spinner
 const toggleSpinner = (show) => {
